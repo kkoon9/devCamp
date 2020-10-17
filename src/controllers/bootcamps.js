@@ -1,13 +1,14 @@
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const Bootcamp = require("../models/Bootcamp");
+const geocoder = require('../utils/geocoder');
 
 /**
- * @api {get} /api/v1/bootcamps
+ * @api {get} /api/v1/bootcamps?averageCost[gte]=5000&location.city=Boston
  * @apiName getBootcamps
  * @apiGroup bootcamps
  *
- * @apiHeader 
+ * @apiHeader bootcamp의 모든 parameters를 query에 담을 수 있다.
  * @apiBody 
  *
  * @apiSuccess {Boolean} success 성공 여부
@@ -15,10 +16,13 @@ const Bootcamp = require("../models/Bootcamp");
  * @apiSuccess {Object} data bootcamps 
  */
 exports.getBootcamps = asyncHandler(async (req, res, next) => {
-  const bootcamps = await Bootcamp.find();
+  let queryStr = JSON.stringify(req.query);
+  queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
+
+  const bootcamps = await Bootcamp.find(JSON.parse(queryStr));
   res.status(200).json({
     success: true,
-    msg: 'Show all bootcamps',
+    count: bootcamps.length,
     data: bootcamps
   });
 });
@@ -117,4 +121,47 @@ exports.deleteBootcamps = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true
   });
+});
+
+/**
+ * @api {get} /api/v1/bootcamps/radius?zipcode=1&distance=1
+ * @apiName getBootcampsInRadius
+ * @apiGroup bootcamps
+ *
+ * @apiHeader 
+ * @apiParam {String} zipcode zip code
+ * @apiParam {Number} distance 거리
+ * @apiBody 
+ *
+ * @apiSuccess {Boolean} success 성공 여부
+ * @apiSuccess {String} message Show bootcamps
+ */
+exports.getBootcampsInRadius = asyncHandler(async (req, res, next) => {
+  const { zipcode, distance } = req.query;
+
+  // Get lat/lng from geocoder
+  const loc = await geocoder.geocode(zipcode);
+  const lat = loc[0].latitude;
+  const lng = loc[0].longitude;
+
+  /**
+   * Calc radius using radians
+   * Divide dist by radius of Earth
+   * Earth Radius = 3,963 mi / 6,378 km
+   */
+  const radius = distance / 3963;
+
+  const bootcamps = await Bootcamp.find({
+    location: {
+      $geoWithin: {
+        $centerSphere: [[lng, lat], radius]
+      }
+    }
+  });
+
+  res.status(200).json({
+    success: true,
+    count: bootcamps.length,
+    data: bootcamps
+  })
 });
