@@ -1,3 +1,4 @@
+const ErrorResponse = require('../utils/errorResponse');
 const Bootcamp = require("../models/Bootcamp");
 
 /**
@@ -21,10 +22,7 @@ exports.getBootcamps = async (req, res, next) => {
       data: bootcamps
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      // msg: error.message Database 오류는 보안상 response에 넣어주지 않는다.
-    })
+    next(error);
   }
 };
 
@@ -44,16 +42,17 @@ exports.getBootcamps = async (req, res, next) => {
 exports.getBootcamp = async (req, res, next) => {
   try {
     const bootcamp = await Bootcamp.findById(req.params.id);
+    if (!bootcamp) {
+      return next(new ErrorResponse(`Bootcamp not found with id of ${req.params.id}`, 404));
+    }
     res.status(200).json({
       success: true,
       msg: `Show bootcamps ${req.params.id}`,
       data: bootcamp
     });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      // msg: error.message Database 오류는 보안상 response에 넣어주지 않는다.
-    })
+  } catch (error) { // catch가 다음에 할 일인 비동기 핸들러를 만들 수 있습니다.
+    //next(new ErrorResponse(`Bootcamp not found with id of ${req.params.id}`, 404));
+    next(error);
   }
 };
 
@@ -77,10 +76,7 @@ exports.createBootcamps = async (req, res, next) => {
       data: bootcamp
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      // msg: error.message Database 오류는 보안상 response에 넣어주지 않는다.
-    })
+    next(error);
   }
 };
 
@@ -97,19 +93,23 @@ exports.createBootcamps = async (req, res, next) => {
  * @apiSuccess {String} message Update bootcamp id
  */
 exports.updateBootcamps = async (req, res, next) => {
-  const bootcamp = await Bootcamp.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true
-  });
+  try {
+    const bootcamp = await Bootcamp.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
 
-  if (!bootcamp) {
-    return res.status(400).json({ success: false });
+    if (!bootcamp) {
+      return next(new ErrorResponse(`Bootcamp not found with id of ${req.params.id}`, 404));
+    }
+    res.status(200).json({
+      success: true,
+      msg: `Update bootcamps ${req.params.id}`,
+      data: bootcamp
+    });
+  } catch (error) {
+    nexxt(error);
   }
-  res.status(200).json({
-    success: true,
-    msg: `Update bootcamps ${req.params.id}`,
-    data: bootcamp
-  });
 };
 
 /**
@@ -125,12 +125,16 @@ exports.updateBootcamps = async (req, res, next) => {
  * @apiSuccess {String} message Delete bootcamps id
  */
 exports.deleteBootcamps = async (req, res, next) => {
-  const bootcamp = await Bootcamp.findByIdAndRemove(req.params.id);
+  try {
+    const bootcamp = await Bootcamp.findByIdAndRemove(req.params.id);
 
-  if (!bootcamp) {
-    return res.status(400).json({ success: false });
+    if (!bootcamp) {
+      return next(new ErrorResponse(`Bootcamp not found with id of ${req.params.id}`, 404));
+    }
+    res.status(200).json({
+      success: true
+    });
+  } catch (error) {
+    next(error);
   }
-  res.status(200).json({
-    success: true
-  });
 };
