@@ -15,6 +15,9 @@ const bootcamps = require('./api/bootcamps');
 // logger files
 const app = express();
 
+// Body parser : 이것이 없으면 Json 형태의 req.body를 받을 수 없다.
+app.use(express.json());
+
 // Dev logging middleware 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
