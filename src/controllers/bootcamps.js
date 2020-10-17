@@ -2,13 +2,16 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const Bootcamp = require("../models/Bootcamp");
 const geocoder = require('../utils/geocoder');
+const e = require('express');
 
 /**
- * @api {get} /api/v1/bootcamps?averageCost[gte]=5000&location.city=Boston
+ * @api {get} /api/v1/bootcamps?averageCost[gte]=5000&location.city=Boston&select=name,description,housing&sort=-name
  * @apiName getBootcamps
  * @apiGroup bootcamps
  *
  * @apiHeader bootcamp의 모든 parameters를 query에 담을 수 있다.
+ * @apiHeader {String} select query문에 select 역할
+ * @apiHeader {String} sort query문에 sort 역할
  * @apiBody 
  *
  * @apiSuccess {Boolean} success 성공 여부
@@ -16,10 +19,40 @@ const geocoder = require('../utils/geocoder');
  * @apiSuccess {Object} data bootcamps 
  */
 exports.getBootcamps = asyncHandler(async (req, res, next) => {
-  let queryStr = JSON.stringify(req.query);
+  let query;
+  // Copy req.query
+  const reqQuery = { ...req.query };
+
+  // Fields to exclude
+  const removeFields = ['select', 'sort'];
+
+  // Loop over removeFields and delete them from reqQuery
+  removeFields.forEach(param => delete reqQuery[param]);
+
+  // Create query String
+  let queryStr = JSON.stringify(reqQuery);
+
+  // Create operator ($gt, $gte, etc)
   queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
 
-  const bootcamps = await Bootcamp.find(JSON.parse(queryStr));
+  // Finding resource
+  query = Bootcamp.find(JSON.parse(queryStr));
+
+  // Select Fields
+  if (req.query.select) {
+    const fields = req.query.select.split(',').join(' ');
+    query = query.select(fields);
+  }
+
+  // Sort
+  if (req.query.sort) {
+    const sortBy = req.query.sort.split(',').join(' ');
+    query = query.sort(sortBy);
+  } else {
+    query = query.sort('-createdAt');
+  }
+  // Executing query
+  const bootcamps = await query;
   res.status(200).json({
     success: true,
     count: bootcamps.length,
